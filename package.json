@@ -1,0 +1,16 @@
+{
+  "name": "simple-api-oauth2",
+  "main": "server.js",
+  "dependencies": {
+    "bcrypt-nodejs": "0.0.3",
+    "body-parser": "^1.12.4",
+    "ejs": "^2.3.1",
+    "express": "^4.12.4",
+    "express-session": "^1.11.2",
+    "mongoose": "^4.0.5",
+    "oauth2orize": "^1.0.1",
+    "passport": "^0.2.2",
+    "passport-http": "^0.2.2",
+    "passport-http-bearer": "^1.0.1"
+  }
+}
