@@ -31,7 +31,11 @@ exports.getResources = function(req, res) {
 };
 
 exports.getResource = function(req, res) {
-  Resource.find({ userId: req.user._id, _id: req.params.resource_id }, function(err, resource) {
+  Resource.findOne({ 
+    userId: req.user._id, 
+    _id: req.params.id 
+  }, 
+  function(err, resource) {
     if (err) {
       res.send(err);
     }
@@ -41,24 +45,29 @@ exports.getResource = function(req, res) {
 };
 
 exports.putResource = function(req, res) {
-  Resource.update({ 
-    userId: req.user._id, 
-    _id: req.params.resource_id 
-  }, {
-    name: req.body.name || resource.name,
-    type: req.body.type || resource.type,
-    body: req.body.body || resource.body
-  }, function(err, num, raw) {
+  Resource.findOneAndUpdate({
+    userId: req.user._id,
+    _id: req.params.id
+  }, 
+  req.body, 
+  function(err, resource) {
     if (err) {
       res.send(err);
     }
 
-    res.json({ message: num + ' updated' });
+    res.json({ 
+      message: 'Resource `' + resource.name + '` updated.',
+      data: resource
+    });
   });
 };
 
 exports.deleteResource = function(req, res) {
-  Resource.remove({ userId: req.user._id, _id: req.params.resource_id }, function(err) {
+  Resource.remove({ 
+    userId: req.user._id, 
+    _id: req.params.id 
+  }, 
+  function(err) {
     if (err) {
       res.send(err);
     }

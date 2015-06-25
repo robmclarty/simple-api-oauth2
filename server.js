@@ -1,61 +1,63 @@
 var express = require('express');
 var mongoose = require('mongoose');
 var bodyParser = require('body-parser');
+var cookieParser = require('cookie-parser');
 var passport = require('passport');
 var ejs = require('ejs');
+var handlebars = require('express-handlebars');
 var session = require('express-session');
+var logger = require('morgan');
+var MongoDBStore = require('connect-mongodb-session')(session);
 var port = process.env.PORT || 3000;
 
-var authController = require('./controllers/auth_controller');
-var resourceController = require('./controllers/resource_controller');
-var userController = require('./controllers/user_controller');
-var clientController = require('./controllers/client_controller');
-var oauth2Controller = require('./controllers/oauth2_controller');
-
 // Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/hotspot-api');
+var dbURI = 'mongodb://localhost:27017/oauthdb';
+mongoose.connect(dbURI);
 
+// Define express app
 var app = express();
 
-app.set('view engine', 'ejs');
+app.use(logger('dev'));
 
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(passport.initialize());
+// Configure view template engine
+app.engine('.hbs', handlebars({ 
+  layoutsDir: './views/layouts/',
+  defaultLayout: 'application',
+  extname: '.hbs'
+}));
+app.set('view engine', '.hbs');
 
+// Configure bodyParser to accept x-www.form-urlencoded and json
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
+// Configure cookie parser
+app.use(cookieParser(process.env.COOKIE_SECRET || 'C00k13-S3cR3T'));
+
+// Configure sessions and store them in database
+var sessionStore = new MongoDBStore({ uri: dbURI, collection: 'sessions' });
 app.use(session({
-  secret: 'super secret session key',
-  saveUninitialized: true,
-  resave: true
+  key: 'simple-api-oauth2.session',
+  secret: process.env.SESSION_SECRET || 'S3ss10N-S3cR3T',
+  store: sessionStore,
+  saveUninitialized: true, // saved new sessions
+  resave: false, // do not automatically write to the session store
+  cookie: {
+    maxAge: 1000 * 60 * 60 * 24 * 7 // expire after 1 week
+  }
 }));
 
-var router = express.Router();
+// Init authentication engine
+app.use(passport.initialize());
+app.use(passport.session());
 
-router.route('/clients')
-  .post(authController.isAuthenticated, clientController.postClients)
-  .get(authController.isAuthenticated, clientController.getClients);
+// Use /public as a directory for static assets.
+app.use(express.static('public'));
 
-router.route('/resources')
-  .post(authController.isAuthenticated, resourceController.postResources)
-  .get(authController.isAuthenticated, resourceController.getResources);
-
-router.route('/resources/:resource_id')
-  .get(authController.isAuthenticated, resourceController.getResource)
-  .put(authController.isAuthenticated, resourceController.putResource)
-  .delete(authController.isAuthenticated, resourceController.deleteResource);
-
-router.route('/users')
-  .post(userController.postUsers)
-  .get(authController.isAuthenticated, userController.getUsers);
-
-router.route('/oauth2/authorize')
-  .get(authController.isAuthenticated, oauth2Controller.authorization)
-  .post(authController.isAuthenticated, oauth2Controller.decision);
-
-router.route('/oauth2/token')
-  .post(authController.isClientAuthenticated, oauth2Controller.token);
-
-// Register all routes with /api
-app.use('/api', router);
+// Load routes
+app.use('/', require('./routes/session_routes'));
+app.use('/admin', require('./routes/admin_routes'));
+app.use('/api', require('./routes/api_routes'));
 
 // Start the server
 app.listen(port);
